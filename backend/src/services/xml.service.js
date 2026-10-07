@@ -1,9 +1,10 @@
 const fs = require('fs');
 const { XMLParser } = require('fast-xml-parser');
+const { isSafeFilePath } = require('../utils/security.util');
 
 class XmlService {
   /**
-   * Parse shipments from file path, raw string, buffer, or array
+   * Parse shipments from safe file path, raw string, buffer, or array
    * @param {string|Buffer|Array} input 
    * @returns {Array} List of shipment records
    */
@@ -16,7 +17,7 @@ class XmlService {
     if (input instanceof Buffer) {
       raw = input.toString('utf8');
     } else if (typeof input === 'string') {
-      if (fs.existsSync(input)) {
+      if (isSafeFilePath(input)) {
         raw = fs.readFileSync(input, 'utf8');
       } else {
         raw = input;
@@ -30,7 +31,10 @@ class XmlService {
     const parser = new XMLParser({
       ignoreAttributes: false,
       parseTagValue: true,
-      trimValues: true
+      trimValues: true,
+      // Security: Disable XML Entity Expansion (XXE) attacks
+      processEntities: false,
+      stopNodes: []
     });
 
     let parsed;
@@ -44,7 +48,6 @@ class XmlService {
       throw new Error('Empty XML document.');
     }
 
-    // Support both <shipments><shipment> and <root><shipment> or direct <shipment>
     let shipments = null;
     if (parsed.shipments && parsed.shipments.shipment) {
       shipments = parsed.shipments.shipment;
@@ -60,7 +63,6 @@ class XmlService {
       shipments = [shipments];
     }
 
-    // Normalize field types and values
     return shipments.map(s => ({
       shipment_id: s.shipment_id ? String(s.shipment_id).trim() : null,
       order_id: s.order_id ? String(s.order_id).trim() : null,

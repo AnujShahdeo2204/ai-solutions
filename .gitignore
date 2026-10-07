@@ -30,6 +30,7 @@ pnpm-debug.log*
 # OS files
 Thumbs.db
 Desktop.ini
+~$*
 
 # Agents / AI
 .agents/

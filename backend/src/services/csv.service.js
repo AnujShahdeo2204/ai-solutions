@@ -1,9 +1,10 @@
 const fs = require('fs');
 const { parse } = require('csv-parse/sync');
+const { isSafeFilePath } = require('../utils/security.util');
 
 class CsvService {
   /**
-   * Parse products from file path, raw string, buffer, or array
+   * Parse products from safe file path, raw string, buffer, or array
    * @param {string|Buffer|Array} input 
    * @returns {Array} List of product records
    */
@@ -16,7 +17,7 @@ class CsvService {
     if (input instanceof Buffer) {
       raw = input.toString('utf8');
     } else if (typeof input === 'string') {
-      if (fs.existsSync(input)) {
+      if (isSafeFilePath(input)) {
         raw = fs.readFileSync(input, 'utf8');
       } else {
         raw = input;
@@ -62,7 +63,7 @@ class CsvService {
         ProductID: product_id,
         ProductName: product_name,
         Category: category,
-        Price: price
+        Price: isNaN(price) ? 0 : price
       };
     });
   }

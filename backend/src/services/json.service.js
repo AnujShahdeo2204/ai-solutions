@@ -1,8 +1,9 @@
 const fs = require('fs');
+const { isSafeFilePath } = require('../utils/security.util');
 
 class JsonService {
   /**
-   * Parse orders from file path, raw string, buffer, or object
+   * Parse orders from safe file path, raw string, buffer, or object
    * @param {string|Buffer|object} input 
    * @returns {Array} List of orders
    */
@@ -18,8 +19,8 @@ class JsonService {
     if (input instanceof Buffer) {
       raw = input.toString('utf8');
     } else if (typeof input === 'string') {
-      // Check if it's a file path or raw JSON string
-      if (fs.existsSync(input)) {
+      // Safely check if it is an allowed internal file path
+      if (isSafeFilePath(input)) {
         raw = fs.readFileSync(input, 'utf8');
       } else {
         raw = input;

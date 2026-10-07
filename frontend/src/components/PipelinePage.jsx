@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Database, 
-  FileText, 
   Upload, 
-  CheckCircle, 
-  AlertCircle, 
   RefreshCw, 
   Globe, 
   DollarSign, 
   Sparkles,
   ArrowRight,
   Layers,
-  Box,
-  Truck
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { 
   ingestJson, 
@@ -22,14 +19,15 @@ import {
   getPipelineStatus, 
   checkBackendHealth, 
   getCurrencyRates,
-  getCountries 
+  getCountries,
+  getApiUrl
 } from '../services/api';
 
 const PipelinePage = () => {
   const [dbStats, setDbStats] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [loadingAction, setLoadingAction] = useState('');
-  const [logs, setLogs] = useState([]);
+  const [statusMessage, setStatusMessage] = useState(null);
   
   // File inputs
   const [jsonFile, setJsonFile] = useState(null);
@@ -42,19 +40,6 @@ const PipelinePage = () => {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [loadingCountries, setLoadingCountries] = useState(false);
 
-  const addLog = (type, title, details) => {
-    setLogs(prev => [
-      {
-        id: Date.now() + Math.random(),
-        time: new Date().toLocaleTimeString(),
-        type, // 'success' | 'error' | 'info'
-        title,
-        details
-      },
-      ...prev.slice(0, 9)
-    ]);
-  };
-
   const refreshStatus = async () => {
     try {
       const health = await checkBackendHealth();
@@ -64,9 +49,12 @@ const PipelinePage = () => {
         if (statusRes.success) {
           setDbStats(statusRes.data);
         }
+      } else {
+        setDbStats(null);
       }
     } catch (e) {
       setBackendOnline(false);
+      setDbStats(null);
     }
   };
 
@@ -79,7 +67,7 @@ const PipelinePage = () => {
     try {
       setLoadingCountries(true);
       const c = await getCountries(selectedRegion);
-      setCountries(c.slice(0, 8));
+      setCountries(c.slice(0, 10));
     } catch (e) {} finally {
       setLoadingCountries(false);
     }
@@ -94,18 +82,23 @@ const PipelinePage = () => {
     loadExternalApis();
   }, [selectedRegion]);
 
+  const showNotification = (type, text) => {
+    setStatusMessage({ type, text });
+    setTimeout(() => setStatusMessage(null), 5000);
+  };
+
   const handleIngestJson = async () => {
     setLoadingAction('json');
     try {
       const res = await ingestJson(jsonFile || {});
       if (res.success) {
-        addLog('success', 'JSON Ingestion Complete', `Processed ${res.ordersIngested || 0} orders. Rows normalized: ${res.normalizedRows || 0}`);
+        showNotification('success', `JSON Ingested: Processed ${res.ordersIngested || 0} orders.`);
         refreshStatus();
       } else {
-        addLog('error', 'JSON Ingestion Failed', res.error || 'Unknown error');
+        showNotification('error', `JSON Ingestion Failed: ${res.error || 'Unknown error'}`);
       }
     } catch (err) {
-      addLog('error', 'JSON Ingestion Error', err.message);
+      showNotification('error', `JSON Ingestion Error: ${err.message}`);
     } finally {
       setLoadingAction('');
       setJsonFile(null);
@@ -117,13 +110,13 @@ const PipelinePage = () => {
     try {
       const res = await ingestCsv(csvFile || '');
       if (res.success) {
-        addLog('success', 'CSV Ingestion Complete', `Processed ${res.productsIngested || 0} products.`);
+        showNotification('success', `CSV Ingested: Processed ${res.productsIngested || 0} products.`);
         refreshStatus();
       } else {
-        addLog('error', 'CSV Ingestion Failed', res.error || 'Unknown error');
+        showNotification('error', `CSV Ingestion Failed: ${res.error || 'Unknown error'}`);
       }
     } catch (err) {
-      addLog('error', 'CSV Ingestion Error', err.message);
+      showNotification('error', `CSV Ingestion Error: ${err.message}`);
     } finally {
       setLoadingAction('');
       setCsvFile(null);
@@ -135,13 +128,13 @@ const PipelinePage = () => {
     try {
       const res = await ingestXml(xmlFile || '');
       if (res.success) {
-        addLog('success', 'XML Ingestion Complete', `Processed ${res.shipmentsIngested || 0} shipments.`);
+        showNotification('success', `XML Ingested: Processed ${res.shipmentsIngested || 0} shipments.`);
         refreshStatus();
       } else {
-        addLog('error', 'XML Ingestion Failed', res.error || 'Unknown error');
+        showNotification('error', `XML Ingestion Failed: ${res.error || 'Unknown error'}`);
       }
     } catch (err) {
-      addLog('error', 'XML Ingestion Error', err.message);
+      showNotification('error', `XML Ingestion Error: ${err.message}`);
     } finally {
       setLoadingAction('');
       setXmlFile(null);
@@ -153,13 +146,13 @@ const PipelinePage = () => {
     try {
       const res = await seedDemoData();
       if (res.success) {
-        addLog('success', 'Rich Demo Dataset Seeded', `Populated ${res.rawOrders || 41} orders across 14 dates and 5 categories.`);
+        showNotification('success', `Demo Dataset Seeded: Populated ${res.rawOrders || 41} orders across 14 dates.`);
         refreshStatus();
       } else {
-        addLog('error', 'Seed Failed', res.error);
+        showNotification('error', `Seed Failed: ${res.error}`);
       }
     } catch (err) {
-      addLog('error', 'Seed Error', err.message);
+      showNotification('error', `Seed Error: ${err.message}`);
     } finally {
       setLoadingAction('');
     }
@@ -179,8 +172,8 @@ const PipelinePage = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-surface">
-            <span className={`w-2.5 h-2.5 rounded-full ${backendOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            {backendOnline ? 'API Server Live (Port 5000)' : 'API Server Offline'}
+            <span className={`w-2.5 h-2.5 rounded-full ${backendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            {backendOnline ? `Connected (${getApiUrl()})` : 'Backend Disconnected'}
           </div>
           <button
             onClick={refreshStatus}
@@ -191,6 +184,18 @@ const PipelinePage = () => {
           </button>
         </div>
       </div>
+
+      {/* Floating Status Notification */}
+      {statusMessage && (
+        <div className={`p-4 rounded-xl border mb-6 flex items-center gap-3 text-sm animate-in fade-in duration-200 ${
+          statusMessage.type === 'success' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+            : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`}>
+          {statusMessage.type === 'success' ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
+          <p className="font-medium">{statusMessage.text}</p>
+        </div>
+      )}
 
       {/* Database State Banner */}
       <div className="bg-surface rounded-xl border border-border p-6 shadow-sm mb-8">
@@ -364,79 +369,49 @@ const PipelinePage = () => {
         </div>
       </div>
 
-      {/* Activity Log & External APIs Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Activity Logs */}
-        <div className="bg-surface rounded-xl border border-border p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-primary mb-4 flex items-center gap-2">
-            <FileText size={18} className="text-secondary" /> Ingestion Activity Log
-          </h3>
-          {logs.length === 0 ? (
-            <div className="p-8 text-center text-secondary border border-dashed rounded-lg">
-              <p className="text-sm">No recent pipeline activity.</p>
-              <p className="text-xs text-slate-400 mt-1">Run an ingestion above to view live processing logs.</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {logs.map(log => (
-                <div key={log.id} className="p-3 bg-slate-50 border border-border rounded-lg flex items-start gap-3 text-sm">
-                  {log.type === 'success' ? (
-                    <CheckCircle size={18} className="text-green-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-primary">{log.title}</p>
-                      <span className="text-[11px] text-secondary">{log.time}</span>
-                    </div>
-                    <p className="text-xs text-secondary mt-0.5">{log.details}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* External API Integration Showcase (Full Width) */}
+      <div className="bg-surface rounded-xl border border-border p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-primary mb-4 flex items-center gap-2">
+          <Globe size={18} className="text-accent" /> External API Integrations
+        </h3>
 
-        {/* External API Integration Showcase */}
-        <div className="bg-surface rounded-xl border border-border p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-primary mb-4 flex items-center gap-2">
-            <Globe size={18} className="text-accent" /> External API Integrations
-          </h3>
-
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Currency conversion card */}
-          <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <DollarSign size={16} className="text-blue-600" />
-                <span className="text-xs font-semibold uppercase text-blue-900 tracking-wider">Frankfurter Currency API</span>
+                <DollarSign size={18} className="text-blue-600" />
+                <span className="text-xs font-bold uppercase text-blue-900 tracking-wider">Frankfurter Currency API</span>
               </div>
-              <span className="text-[11px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">Live Rates</span>
+              <span className="text-[11px] bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">Live Rates</span>
             </div>
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <div className="bg-white p-2 rounded border border-blue-100 text-center">
+            <p className="text-xs text-secondary mb-4 leading-relaxed">
+              Provides real-time currency conversions with 1-hour in-memory cache and resilient fallback rates.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-xs">
                 <span className="text-[10px] text-secondary uppercase font-semibold">1 INR → EUR</span>
-                <p className="text-sm font-bold text-primary mt-0.5">€{currencyData?.rates?.EUR?.toFixed(4) || '0.0092'}</p>
+                <p className="text-base font-bold text-primary mt-1">€{currencyData?.rates?.EUR?.toFixed(4) || '0.0092'}</p>
               </div>
-              <div className="bg-white p-2 rounded border border-blue-100 text-center">
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-xs">
                 <span className="text-[10px] text-secondary uppercase font-semibold">1 INR → USD</span>
-                <p className="text-sm font-bold text-primary mt-0.5">${currencyData?.rates?.USD?.toFixed(4) || '0.0120'}</p>
+                <p className="text-base font-bold text-primary mt-1">${currencyData?.rates?.USD?.toFixed(4) || '0.0120'}</p>
               </div>
-              <div className="bg-white p-2 rounded border border-blue-100 text-center">
-                <span className="text-[10px] text-secondary uppercase font-semibold">Base</span>
-                <p className="text-sm font-bold text-primary mt-0.5">INR (₹)</p>
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-xs">
+                <span className="text-[10px] text-secondary uppercase font-semibold">Base Currency</span>
+                <p className="text-base font-bold text-primary mt-1">INR (₹)</p>
               </div>
             </div>
           </div>
 
           {/* REST Countries API */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase text-secondary tracking-wider">REST Countries Demographic API</span>
+          <div className="bg-slate-50 border border-border rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-secondary tracking-wider">REST Countries Demographic API</span>
               <select
                 value={selectedRegion}
                 onChange={(e) => setSelectedRegion(e.target.value)}
-                className="text-xs border border-border rounded px-2 py-1 bg-white text-primary"
+                className="text-xs border border-border rounded-md px-2.5 py-1 bg-white text-primary font-medium focus:outline-none"
               >
                 <option value="">All Regions</option>
                 <option value="Asia">Asia</option>
@@ -447,15 +422,15 @@ const PipelinePage = () => {
               </select>
             </div>
             {loadingCountries ? (
-              <div className="p-4 text-center text-xs text-secondary animate-pulse">Loading demographic data...</div>
+              <div className="p-8 text-center text-xs text-secondary animate-pulse">Loading demographic data...</div>
             ) : (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {countries.map(c => (
-                  <div key={c.name} className="flex items-center justify-between p-2 bg-slate-50 border border-border rounded text-xs">
-                    <span className="font-medium text-primary">{c.name}</span>
+                  <div key={c.name} className="flex items-center justify-between p-2.5 bg-white border border-border rounded-lg text-xs shadow-xs">
+                    <span className="font-semibold text-primary">{c.name}</span>
                     <span className="text-secondary">{c.region}</span>
-                    <span className="font-semibold text-primary">{(c.population / 1000000).toFixed(1)}M pop</span>
-                    <span className="text-accent font-medium">{c.currencies}</span>
+                    <span className="font-medium text-slate-700">{(c.population / 1000000).toFixed(1)}M pop</span>
+                    <span className="text-accent font-semibold">{c.currencies}</span>
                   </div>
                 ))}
               </div>

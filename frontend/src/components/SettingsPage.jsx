@@ -1,21 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Globe, Moon, User, Shield, Database, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
-import { getUseMock, setUseMock, checkBackendHealth } from '../services/api';
+import { Database, RefreshCw, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { getApiUrl, setApiUrl, getUseMock, setUseMock, checkBackendHealth, DEFAULT_API_URL } from '../services/api';
 
 const SettingsPage = () => {
-  const [apiUrl, setApiUrl] = useState(import.meta.env.VITE_API_URL || 'http://localhost:5000/api');
+  const [apiUrl, setLocalApiUrl] = useState(getApiUrl());
   const [useMock, setLocalUseMock] = useState(getUseMock());
-  const [backendStatus, setBackendStatus] = useState({ checking: true, online: false });
+  const [backendStatus, setBackendStatus] = useState({ checking: true, online: false, message: '' });
 
-  const testConnection = async () => {
-    setBackendStatus({ checking: true, online: false });
-    const res = await checkBackendHealth();
-    setBackendStatus({ checking: false, online: res.online, details: res.data });
+  const testConnection = async (urlToTest) => {
+    const url = urlToTest !== undefined ? urlToTest : apiUrl;
+    
+    if (!url || !url.trim()) {
+      setBackendStatus({ checking: false, online: false, error: 'API URL is empty. Please enter a valid URL.' });
+      return;
+    }
+
+    setBackendStatus({ checking: true, online: false, error: '' });
+    const res = await checkBackendHealth(url);
+    if (res.online) {
+      setBackendStatus({ checking: false, online: true, details: res.data });
+    } else {
+      setBackendStatus({ checking: false, online: false, error: res.error });
+    }
   };
 
   useEffect(() => {
-    testConnection();
+    testConnection(apiUrl);
   }, []);
+
+  const handleUrlChange = (e) => {
+    const val = e.target.value;
+    setLocalApiUrl(val);
+
+    if (!val || !val.trim()) {
+      // Immediately reflect offline when erased
+      setBackendStatus({ checking: false, online: false, error: 'API URL is empty. Please enter a valid URL.' });
+    }
+  };
+
+  const handleSaveAndTest = () => {
+    setApiUrl(apiUrl);
+    testConnection(apiUrl);
+  };
+
+  const handleResetDefault = () => {
+    setLocalApiUrl(DEFAULT_API_URL);
+    setApiUrl(DEFAULT_API_URL);
+    testConnection(DEFAULT_API_URL);
+  };
 
   const handleToggleMock = () => {
     const nextVal = !useMock;
@@ -23,155 +55,103 @@ const SettingsPage = () => {
     setUseMock(nextVal);
   };
 
-  const sections = [
-    {
-      title: 'API Configuration & Data Source',
-      icon: <Database size={20} />,
-      content: (
-        <div className="space-y-4">
+  return (
+    <div className="max-w-4xl mx-auto pb-12">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-primary">Settings</h2>
+        <p className="text-sm text-secondary mt-1">Configure your backend connection and data source.</p>
+      </div>
+
+      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center gap-3">
+          <span className="text-secondary"><Database size={20} /></span>
+          <h3 className="text-base font-semibold text-primary">API Configuration & Data Source</h3>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* API URL Input */}
           <div>
-            <label className="block text-sm font-medium text-primary mb-1">Backend API URL</label>
-            <div className="flex gap-2">
+            <label className="block text-sm font-medium text-primary mb-1">Backend REST API URL</label>
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <input
                 type="text"
+                placeholder="http://localhost:5000/api"
                 value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+                onChange={handleUrlChange}
+                className="flex-1 px-3.5 py-2.5 border border-border rounded-lg text-sm font-mono focus:outline-none focus:border-accent"
               />
-              <button
-                onClick={testConnection}
-                className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-1.5"
-              >
-                <RefreshCw size={14} className={backendStatus.checking ? 'animate-spin' : ''} />
-                Test Connection
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveAndTest}
+                  disabled={backendStatus.checking}
+                  className="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 transition-colors shrink-0"
+                >
+                  <RefreshCw size={14} className={backendStatus.checking ? 'animate-spin' : ''} />
+                  Test & Save
+                </button>
+                <button
+                  onClick={handleResetDefault}
+                  title="Reset to default URL"
+                  className="p-2.5 border border-border rounded-lg text-secondary hover:text-primary hover:bg-slate-50 transition-colors shrink-0"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 mt-2">
+
+            {/* Live Connection Status Badge */}
+            <div className="mt-3">
               {backendStatus.checking ? (
-                <span className="text-xs text-secondary">Checking backend connection...</span>
+                <div className="flex items-center gap-2 text-xs text-secondary">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  Pinging {apiUrl || '(empty URL)'}...
+                </div>
               ) : backendStatus.online ? (
-                <span className="text-xs text-green-700 flex items-center gap-1 font-medium">
-                  <CheckCircle2 size={13} /> Live backend online at {apiUrl}
-                </span>
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2.5 text-xs text-emerald-800">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Connected to Backend</p>
+                    <p className="text-emerald-700 mt-0.5 font-mono">
+                      {apiUrl} — SQLite Database Active ({backendStatus.details?.stats?.orders ?? 0} orders loaded)
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <span className="text-xs text-amber-700 flex items-center gap-1 font-medium">
-                  <XCircle size={13} /> Backend not detected at {apiUrl} (Switch to Mock mode or start backend on port 5000)
-                </span>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2.5 text-xs text-rose-800">
+                  <XCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Disconnected</p>
+                    <p className="text-rose-700 mt-0.5">
+                      {backendStatus.error || 'Unable to connect to the specified API URL.'}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-border">
+          {/* Mock vs Live Toggle Card */}
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-border">
             <div>
-              <p className="text-sm font-medium text-primary">Mock Data vs. Live Backend</p>
+              <p className="text-sm font-semibold text-primary">Data Source Mode</p>
               <p className="text-xs text-secondary mt-0.5">
                 {useMock 
-                  ? 'Currently serving data from local simulated mock generator' 
+                  ? 'Currently serving data from built-in mock simulator' 
                   : 'Currently querying live Node.js / Express SQLite backend'}
               </p>
             </div>
             <button
               onClick={handleToggleMock}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
                 useMock 
-                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' 
-                  : 'bg-green-100 text-green-800 border border-green-300 hover:bg-green-200'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200' 
+                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
               }`}
             >
-              {useMock ? 'Using Mock API (Click for Live)' : 'Using Live Backend (Click for Mock)'}
+              {useMock ? 'Using Mock Data (Switch to Live)' : 'Using Live SQLite (Switch to Mock)'}
             </button>
           </div>
         </div>
-      )
-    },
-    {
-      title: 'Notifications',
-      icon: <Bell size={20} />,
-      content: (
-        <div className="space-y-3">
-          {['Email notifications', 'Push notifications', 'Order alerts', 'Delivery delay alerts'].map(label => (
-            <div key={label} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-border">
-              <p className="text-sm text-primary">{label}</p>
-              <div className="w-10 h-5 bg-accent rounded-full relative cursor-pointer">
-                <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )
-    },
-    {
-      title: 'Appearance',
-      icon: <Moon size={20} />,
-      content: (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-border">
-            <p className="text-sm text-primary">Theme</p>
-            <select className="px-3 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent">
-              <option>Light</option>
-              <option>Dark</option>
-              <option>System</option>
-            </select>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-border">
-            <p className="text-sm text-primary">Primary Currency</p>
-            <select className="px-3 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent">
-              <option>₹ INR (Indian Rupee)</option>
-              <option>$ USD (US Dollar)</option>
-              <option>€ EUR (Euro)</option>
-            </select>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Profile',
-      icon: <User size={20} />,
-      content: (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-secondary">
-              <User size={28} />
-            </div>
-            <div>
-              <p className="font-medium text-primary">Admin User</p>
-              <p className="text-sm text-secondary">admin@analytics.pro</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Full Name</label>
-              <input type="text" defaultValue="Admin User" className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Email</label>
-              <input type="email" defaultValue="admin@analytics.pro" className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent" />
-            </div>
-          </div>
-        </div>
-      )
-    },
-  ];
-
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-primary">Settings</h2>
-        <p className="text-sm text-secondary mt-1">Manage your application preferences and data source.</p>
-      </div>
-
-      <div className="space-y-6">
-        {sections.map(section => (
-          <div key={section.title} className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-border flex items-center gap-3">
-              <span className="text-secondary">{section.icon}</span>
-              <h3 className="text-base font-semibold text-primary">{section.title}</h3>
-            </div>
-            <div className="p-5">
-              {section.content}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

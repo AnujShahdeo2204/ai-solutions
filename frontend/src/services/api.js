@@ -1,8 +1,25 @@
 import { getMockSummary, getMockRevenue, getMockCategories, getMockDelivery, getMockOrders, getMockProducts } from './mockApi';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const DEFAULT_API_URL = 'http://localhost:5000/api';
 
-// Allow runtime override via localStorage, defaulting to env var (or false for live API if backend is available)
+// Dynamic API URL getter (localStorage -> env var -> default)
+export const getApiUrl = () => {
+  const stored = localStorage.getItem('custom_api_url');
+  if (stored !== null) {
+    return stored.trim();
+  }
+  return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim();
+};
+
+export const setApiUrl = (value) => {
+  if (value === null || value === undefined) {
+    localStorage.removeItem('custom_api_url');
+  } else {
+    localStorage.setItem('custom_api_url', String(value).trim());
+  }
+};
+
+// Allow runtime override via localStorage, defaulting to env var (or false for live API)
 export const getUseMock = () => {
   const stored = localStorage.getItem('use_mock_api');
   if (stored !== null) return stored === 'true';
@@ -27,8 +44,16 @@ const buildQueryString = (filters) => {
 };
 
 const fetchAPI = async (endpoint, filters) => {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) {
+    throw new Error('API Error: Backend API URL is empty. Please configure it in Settings.');
+  }
+
+  const cleanBase = baseUrl.replace(/\/+$/, '');
   const query = buildQueryString(filters);
-  const response = await fetch(`${API_URL}${endpoint}${query}`);
+  const targetUrl = `${cleanBase}${endpoint}${query}`;
+
+  const response = await fetch(targetUrl);
   if (!response.ok) {
     throw new Error(`API Error: ${response.statusText} (${response.status})`);
   }
@@ -74,8 +99,11 @@ export const getCurrencyRates = async (base = 'INR') => {
 };
 
 export const getCountries = async (region = '') => {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
   const query = region ? `?region=${encodeURIComponent(region)}` : '';
-  const response = await fetch(`${API_URL}/analytics/countries${query}`);
+  const response = await fetch(`${cleanBase}/analytics/countries${query}`);
   if (!response.ok) throw new Error('Failed to load countries');
   const res = await response.json();
   return res.data || [];
@@ -83,6 +111,10 @@ export const getCountries = async (region = '') => {
 
 // Data Ingestion APIs
 export const ingestJson = async (fileOrData) => {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+
   let body, headers = {};
   if (fileOrData instanceof File) {
     const formData = new FormData();
@@ -96,11 +128,15 @@ export const ingestJson = async (fileOrData) => {
     body = JSON.stringify(fileOrData);
   }
 
-  const res = await fetch(`${API_URL}/ingest/json`, { method: 'POST', headers, body });
+  const res = await fetch(`${cleanBase}/ingest/json`, { method: 'POST', headers, body });
   return res.json();
 };
 
 export const ingestCsv = async (fileOrData) => {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+
   let body, headers = {};
   if (fileOrData instanceof File) {
     const formData = new FormData();
@@ -111,11 +147,15 @@ export const ingestCsv = async (fileOrData) => {
     body = String(fileOrData);
   }
 
-  const res = await fetch(`${API_URL}/ingest/csv`, { method: 'POST', headers, body });
+  const res = await fetch(`${cleanBase}/ingest/csv`, { method: 'POST', headers, body });
   return res.json();
 };
 
 export const ingestXml = async (fileOrData) => {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+
   let body, headers = {};
   if (fileOrData instanceof File) {
     const formData = new FormData();
@@ -126,27 +166,72 @@ export const ingestXml = async (fileOrData) => {
     body = String(fileOrData);
   }
 
-  const res = await fetch(`${API_URL}/ingest/xml`, { method: 'POST', headers, body });
+  const res = await fetch(`${cleanBase}/ingest/xml`, { method: 'POST', headers, body });
   return res.json();
 };
 
 export const seedDemoData = async () => {
-  const res = await fetch(`${API_URL}/ingest/seed`, { method: 'POST' });
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const res = await fetch(`${cleanBase}/ingest/seed`, { method: 'POST' });
   return res.json();
 };
 
 export const getPipelineStatus = async () => {
-  const res = await fetch(`${API_URL}/ingest/status`);
+  const baseUrl = getApiUrl();
+  if (!baseUrl) throw new Error('Backend URL is empty');
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const res = await fetch(`${cleanBase}/ingest/status`);
   return res.json();
 };
 
-export const checkBackendHealth = async () => {
+/**
+ * Health check that validates the SPECIFIC URL passed to it
+ * Returns { online: false, error: ... } if empty, invalid, or unreachable
+ */
+export const checkBackendHealth = async (testUrl) => {
+  const raw = (testUrl !== undefined && testUrl !== null) ? testUrl.trim() : getApiUrl();
+  
+  if (!raw) {
+    return { online: false, error: 'API URL is empty. Please enter a valid URL.' };
+  }
+
+  // Validate URL protocol and format
   try {
-    const res = await fetch(`${API_URL}/health`);
-    if (!res.ok) return { online: false, error: res.statusText };
+    const parsed = new URL(raw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { online: false, error: 'URL must start with http:// or https://' };
+    }
+  } catch (e) {
+    return { online: false, error: 'Invalid URL format (e.g. http://localhost:5000/api)' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const clean = raw.replace(/\/+$/, '');
+    const healthUrl = clean.endsWith('/api') ? `${clean}/health` : `${clean}/api/health`;
+
+    const res = await fetch(healthUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      return { online: false, error: `Server returned HTTP ${res.status}: ${res.statusText}` };
+    }
+
     const data = await res.json();
+    if (!data || data.success !== true) {
+      return { online: false, error: 'Endpoint responded but is not a valid Order Analytics API' };
+    }
+
     return { online: true, data };
   } catch (err) {
-    return { online: false, error: err.message };
+    const isTimeout = err.name === 'AbortError';
+    return { 
+      online: false, 
+      error: isTimeout ? 'Connection timed out (no response within 3s)' : (err.message || 'Connection refused') 
+    };
   }
 };
