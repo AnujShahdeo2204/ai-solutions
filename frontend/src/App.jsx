@@ -6,6 +6,7 @@ import OrdersPage from './components/OrdersPage';
 import ProductsPage from './components/ProductsPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import DeliveryPage from './components/DeliveryPage';
+import PipelinePage from './components/PipelinePage';
 import SettingsPage from './components/SettingsPage';
 
 function App() {
@@ -23,6 +24,8 @@ function App() {
         return <AnalyticsPage />;
       case 'Delivery':
         return <DeliveryPage />;
+      case 'Pipeline':
+        return <PipelinePage />;
       case 'Settings':
         return <SettingsPage />;
       default:

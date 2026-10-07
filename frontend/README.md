@@ -44,10 +44,17 @@ A modern, feature-rich **React analytics dashboard** for monitoring e-commerce o
 - Filtered delivery orders table
 - Status-based color coding
 
+### 🔄 Data Pipeline & Ingestion Engine
+- **Multi-Format Ingestion UI** — Upload or trigger JSON (Orders), CSV (Products), and XML (Shipments)
+- **Live Ingestion Activity Log** — Real-time tracking of rows parsed, joined, and inserted
+- **SQLite Database Status Card** — Live counters for orders, products, customers, and shipments
+- **One-Click Demo Seeder** — Instantly populates 41+ realistic orders across 14 dates
+- **External API Showcase** — Live rates from Frankfurter Currency API + demographic data from REST Countries API
+
 ### ⚙️ Settings
-- API endpoint configuration
-- Notification preferences
-- Appearance/theme toggle (Dark mode ready)
+- Live backend connection testing with latency/status indicator
+- Instant toggle between Live SQLite backend and Mock API
+- Appearance & currency preferences
 - Profile management section
 
 ### 🔔 Header Controls

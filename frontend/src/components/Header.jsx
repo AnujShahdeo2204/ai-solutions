@@ -30,6 +30,7 @@ const subtitles = {
   Products: 'Browse and manage the product catalog.',
   Analytics: 'Deep-dive into business performance metrics.',
   Delivery: 'Monitor shipment and delivery performance.',
+  Pipeline: 'Ingest multi-format data (JSON, CSV, XML) and run transformation pipeline.',
   Settings: 'Manage your application preferences.',
 };
 

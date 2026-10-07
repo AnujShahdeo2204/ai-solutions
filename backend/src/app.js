@@ -2,35 +2,73 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const errorHandler = require('./middleware/error.middleware');
+const { initDB, db } = require('./db/database');
+const storageService = require('./services/storage.service');
 
 // Load environment variables
 dotenv.config();
 
+// Ensure SQLite tables are initialized
+initDB();
+
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json()); // Parses incoming JSON requests
+// Middlewares
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ type: ['text/csv', 'application/xml', 'text/xml'], limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 const ingestRoutes = require('./routes/ingest.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 
 // Health-check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Order Analytics API is running'
-  });
+  try {
+    const stats = storageService.getDatabaseStats();
+    res.json({
+      success: true,
+      message: 'Order Analytics API is running',
+      environment: process.env.NODE_ENV || 'development',
+      stats
+    });
+  } catch (e) {
+    res.json({
+      success: true,
+      message: 'Order Analytics API is running',
+      error: e.message
+    });
+  }
 });
 
+// Mount Routes
 app.use('/api/ingest', ingestRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // Centralized error handling middleware
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
+
+// Auto-seed baseline data if database is empty
+try {
+  const currentOrders = db.prepare('SELECT COUNT(*) as count FROM orders').get().count;
+  if (currentOrders === 0) {
+    console.log('[Bootstrap] No existing orders found in database. Seeding initial dataset...');
+    storageService.saveNormalizedData().catch(err => {
+      console.warn('[Bootstrap] Auto-seed warning:', err.message);
+    });
+  }
+} catch (e) {
+  console.warn('[Bootstrap] DB check notice:', e.message);
+}
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Order Analytics Backend running on http://localhost:${PORT}`);
 });
+
+module.exports = app;

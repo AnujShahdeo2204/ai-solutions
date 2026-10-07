@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, Package, BarChart2, Truck, Settings, Menu } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, BarChart2, Truck, Layers, Settings } from 'lucide-react';
 
 const Sidebar = ({ currentRoute, setCurrentRoute }) => {
   const navItems = [
@@ -8,6 +8,7 @@ const Sidebar = ({ currentRoute, setCurrentRoute }) => {
     { name: 'Products', icon: <Package size={20} /> },
     { name: 'Analytics', icon: <BarChart2 size={20} /> },
     { name: 'Delivery', icon: <Truck size={20} /> },
+    { name: 'Pipeline', icon: <Layers size={20} /> },
     { name: 'Settings', icon: <Settings size={20} /> },
   ];
 

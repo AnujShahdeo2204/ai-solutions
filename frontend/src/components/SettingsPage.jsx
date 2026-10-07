@@ -1,34 +1,85 @@
-import React, { useState } from 'react';
-import { Bell, Globe, Moon, User, Shield, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, Globe, Moon, User, Shield, Database, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { getUseMock, setUseMock, checkBackendHealth } from '../services/api';
 
 const SettingsPage = () => {
   const [apiUrl, setApiUrl] = useState(import.meta.env.VITE_API_URL || 'http://localhost:5000/api');
-  const [useMock, setUseMock] = useState(import.meta.env.VITE_USE_MOCK_API === 'true');
+  const [useMock, setLocalUseMock] = useState(getUseMock());
+  const [backendStatus, setBackendStatus] = useState({ checking: true, online: false });
+
+  const testConnection = async () => {
+    setBackendStatus({ checking: true, online: false });
+    const res = await checkBackendHealth();
+    setBackendStatus({ checking: false, online: res.online, details: res.data });
+  };
+
+  useEffect(() => {
+    testConnection();
+  }, []);
+
+  const handleToggleMock = () => {
+    const nextVal = !useMock;
+    setLocalUseMock(nextVal);
+    setUseMock(nextVal);
+  };
 
   const sections = [
     {
-      title: 'API Configuration',
+      title: 'API Configuration & Data Source',
       icon: <Database size={20} />,
       content: (
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-primary mb-1">Backend API URL</label>
-            <input
-              type="text"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
-            />
-            <p className="text-xs text-secondary mt-1">Set via VITE_API_URL environment variable. Changes here are for display only.</p>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-border">
-            <div>
-              <p className="text-sm font-medium text-primary">Mock API Mode</p>
-              <p className="text-xs text-secondary">Currently using {useMock ? 'mock data' : 'live backend'}</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+              />
+              <button
+                onClick={testConnection}
+                className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-1.5"
+              >
+                <RefreshCw size={14} className={backendStatus.checking ? 'animate-spin' : ''} />
+                Test Connection
+              </button>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${useMock ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-              {useMock ? 'Mock' : 'Live'}
-            </span>
+            <div className="flex items-center gap-2 mt-2">
+              {backendStatus.checking ? (
+                <span className="text-xs text-secondary">Checking backend connection...</span>
+              ) : backendStatus.online ? (
+                <span className="text-xs text-green-700 flex items-center gap-1 font-medium">
+                  <CheckCircle2 size={13} /> Live backend online at {apiUrl}
+                </span>
+              ) : (
+                <span className="text-xs text-amber-700 flex items-center gap-1 font-medium">
+                  <XCircle size={13} /> Backend not detected at {apiUrl} (Switch to Mock mode or start backend on port 5000)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-border">
+            <div>
+              <p className="text-sm font-medium text-primary">Mock Data vs. Live Backend</p>
+              <p className="text-xs text-secondary mt-0.5">
+                {useMock 
+                  ? 'Currently serving data from local simulated mock generator' 
+                  : 'Currently querying live Node.js / Express SQLite backend'}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleMock}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                useMock 
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' 
+                  : 'bg-green-100 text-green-800 border border-green-300 hover:bg-green-200'
+              }`}
+            >
+              {useMock ? 'Using Mock API (Click for Live)' : 'Using Live Backend (Click for Mock)'}
+            </button>
           </div>
         </div>
       )
@@ -63,11 +114,11 @@ const SettingsPage = () => {
             </select>
           </div>
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-border">
-            <p className="text-sm text-primary">Currency Format</p>
+            <p className="text-sm text-primary">Primary Currency</p>
             <select className="px-3 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent">
-              <option>₹ INR</option>
-              <option>$ USD</option>
-              <option>€ EUR</option>
+              <option>₹ INR (Indian Rupee)</option>
+              <option>$ USD (US Dollar)</option>
+              <option>€ EUR (Euro)</option>
             </select>
           </div>
         </div>
@@ -106,7 +157,7 @@ const SettingsPage = () => {
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-primary">Settings</h2>
-        <p className="text-sm text-secondary mt-1">Manage your application preferences.</p>
+        <p className="text-sm text-secondary mt-1">Manage your application preferences and data source.</p>
       </div>
 
       <div className="space-y-6">

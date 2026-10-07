@@ -1,8 +1,16 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, '../../data/analytics.db');
+const dataDir = path.join(__dirname, '../../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'analytics.db');
 const db = new Database(dbPath);
+
+db.pragma('journal_mode = WAL');
 
 function initDB() {
   db.exec(`
@@ -14,7 +22,9 @@ function initDB() {
     CREATE TABLE IF NOT EXISTS products (
       product_id TEXT PRIMARY KEY,
       name TEXT,
-      category TEXT
+      category TEXT,
+      price REAL DEFAULT 0,
+      stock INTEGER DEFAULT 100
     );
 
     CREATE TABLE IF NOT EXISTS orders (
@@ -47,7 +57,35 @@ function initDB() {
       FOREIGN KEY (order_id) REFERENCES orders(order_id),
       FOREIGN KEY (product_id) REFERENCES products(product_id)
     );
+
+    CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(order_date);
+    CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
+    CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_shipments_order ON shipments(order_id);
+    CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
   `);
+
+  // Run dynamic schema migrations for existing SQLite databases
+  const ensureColumn = (table, column, colDef) => {
+    try {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+      if (!cols.includes(column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${colDef}`);
+      }
+    } catch (e) {
+      console.warn(`Migration notice for ${table}.${column}:`, e.message);
+    }
+  };
+
+  ensureColumn('products', 'price', 'REAL DEFAULT 0');
+  ensureColumn('products', 'stock', 'INTEGER DEFAULT 100');
+  ensureColumn('orders', 'total_order_value_converted', 'REAL DEFAULT 0');
+  ensureColumn('shipments', 'delivery_delay', 'BOOLEAN DEFAULT 0');
+  ensureColumn('order_items', 'price_converted', 'REAL DEFAULT 0');
+  ensureColumn('order_items', 'item_value_converted', 'REAL DEFAULT 0');
 }
+
+// Auto-run schema & migration initialization
+initDB();
 
 module.exports = { db, initDB };
