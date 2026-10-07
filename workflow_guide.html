@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Analytics Platform — Complete Architecture & Workflow Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #0f172a;
+      --surface-card: #131c31;
+      --surface-border: #1e293b;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --accent-purple: #a855f7;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    /* Ambient Background Glow */
+    .glow-orb {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.18;
+    }
+    .glow-blue { top: -100px; left: -100px; background: #0284c7; }
+    .glow-purple { top: 30%; right: -150px; background: #9333ea; }
+    .glow-emerald { bottom: -100px; left: 20%; background: #059669; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      padding: 60px 0 40px;
+      border-bottom: 1px solid var(--surface-border);
+      margin-bottom: 48px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent);
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 800px;
+    }
+
+    /* Quick Health Check Banner */
+    .status-banner {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 48px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .status-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .status-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-sub);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .status-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .status-url:hover {
+      text-decoration: underline;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 36px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .section-title {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.98rem;
+      margin-bottom: 28px;
+      max-width: 900px;
+    }
+
+    /* Step Pipeline Diagram */
+    .workflow-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      position: relative;
+      margin-top: 24px;
+    }
+
+    .timeline-step {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 20px;
+      position: relative;
+    }
+
+    .step-number-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .step-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--surface-card);
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .step-line {
+      width: 2px;
+      flex: 1;
+      background: dashed 2px var(--surface-border);
+      margin-top: 10px;
+    }
+
+    .step-content {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .step-header h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .step-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .tag-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .tag-purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .tag-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    /* Code Blocks */
+    pre {
+      background: #090e1a;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin: 14px 0;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+    }
+
+    .inline-code {
+      background: #1e293b;
+      color: #38bdf8;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    /* Comparison & Data Flow Tables */
+    .flow-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 16px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--surface-border);
+      font-size: 0.88rem;
+    }
+
+    .flow-table th {
+      background: #1e293b;
+      color: var(--text-main);
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .flow-table td {
+      background: var(--surface-card);
+      padding: 12px 16px;
+      border-top: 1px solid var(--surface-border);
+      color: var(--text-muted);
+    }
+
+    .flow-table tr:hover td {
+      background: #17223b;
+      color: #fff;
+    }
+
+    /* Terminal Prompt Box */
+    .terminal-box {
+      background: #060911;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      font-family: 'JetBrains Mono', monospace;
+      position: relative;
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 10px;
+    }
+
+    .t-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+    .t-red { background: #ef4444; }
+    .t-yellow { background: #eab308; }
+    .t-green { background: #22c55e; }
+
+    .t-title {
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      margin-left: 8px;
+    }
+
+    .t-cmd {
+      color: #38bdf8;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .t-out {
+      color: #a3e635;
+      display: block;
+    }
+
+    /* Button CTA */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #04101e;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #7dd3fc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .btn-outline:hover {
+      background: rgba(56, 189, 248, 0.1);
+      color: #fff;
+    }
+
+    /* Grid of Features */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin: 16px 0;
+    }
+
+    .card-sm {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-sm h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-sm p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glow-orb glow-blue"></div>
+  <div class="glow-orb glow-purple"></div>
+  <div class="glow-orb glow-emerald"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="badge-pill">
+        <span class="pulse-dot"></span>
+        Platform Architecture & Workflow
+      </div>
+      <h1>Order Analytics Engine & Pipeline</h1>
+      <p class="subtitle">
+        A complete guide explaining how data flows from raw multi-format inputs (JSON, CSV, XML), through the Node.js transformation engine, into SQLite relational tables, and up to the interactive React dashboard.
+      </p>
+    </header>
+
+    <!-- Verification / Current Status Banner -->
+    <div class="status-banner">
+      <div class="status-card">
+        <div class="status-title">Frontend Dashboard</div>
+        <div class="status-value">
+          <span style="color: #10b981;">● Active</span>
+        </div>
+        <a href="http://localhost:5173" target="_blank" class="status-url">http://localhost:5173</a>
+      </div>
+
+      <div class="status-card">
+        <div class="status-title">Backend REST Engine</div>
+        <div class="status-value">
+          <span style="color: #10b981;">● Active (Port 5000)</span>
+        </div>
+        <a href="http://localhost:5000/api/health" target="_blank" class="status-url">http://localhost:5000/api/health</a>
+      </div>
+
+      <div class="status-card">
+        <div class="status-title">Database</div>
+        <div class="status-value">SQLite (WAL Mode)</div>
+        <span style="font-size: 0.8rem; color: var(--text-sub);">backend/data/analytics.db</span>
+      </div>
+
+      <div class="status-card">
+        <div class="status-title">External APIs</div>
+        <div class="status-value">2 Services</div>
+        <span style="font-size: 0.8rem; color: var(--text-sub);">Frankfurter Currency + REST Countries</span>
+      </div>
+    </div>
+
+    <!-- SECTION 1: HOW TO CHECK IT IS WORKING -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>🔎</span> 1. How to Check It Is Working
+      </div>
+      <p class="section-desc">
+        You can verify the system in 3 simple ways: visually through the browser, via the automated CLI test suite, or by pinging the REST APIs directly.
+      </p>
+
+      <div class="grid-2">
+        <div class="card-sm">
+          <h4>🌐 1. Visual Browser Verification</h4>
+          <p style="margin-bottom: 12px;">Open the following endpoints in your browser to inspect live interfaces:</p>
+          <ul style="padding-left: 20px; font-size: 0.88rem; color: var(--text-muted); line-height: 1.8;">
+            <li><strong>Dashboard:</strong> <a href="http://localhost:5173" target="_blank" class="status-url">http://localhost:5173</a> — KPI cards, Area charts, Donut charts, Orders table.</li>
+            <li><strong>Data Pipeline UI:</strong> Click <strong>Pipeline</strong> in the left sidebar to upload files or inspect live database record counts.</li>
+            <li><strong>Settings Page:</strong> Test connection latency and toggle between Live SQLite and Mock data with 1 click.</li>
+          </ul>
+        </div>
+
+        <div class="card-sm">
+          <h4>⚡ 2. Automated Test Suite (13 Endpoints)</h4>
+          <p style="margin-bottom: 12px;">Run the end-to-end test script in your terminal to validate every pipeline step:</p>
+          <pre>cd d:\kd\backend
+node test-e2e.js</pre>
+          <p style="font-size: 0.82rem; color: #a3e635;">✓ Validates Ingestion, Multi-Way Joins, Currency API, and SQLite Integrity.</p>
+        </div>
+      </div>
+
+      <div class="terminal-box">
+        <div class="terminal-header">
+          <div class="t-dot t-red"></div>
+          <div class="t-dot t-yellow"></div>
+          <div class="t-dot t-green"></div>
+          <span class="t-title">Terminal Quick Pings (PowerShell or Bash)</span>
+        </div>
+        <span class="t-cmd"># Health check & table counts:</span>
+        <span class="t-cmd">curl http://localhost:5000/api/health</span>
+        <span class="t-out">{"success":true,"message":"Order Analytics API is running","stats":{"orders":41,"products":12,"customers":10}}</span>
+        <br>
+        <span class="t-cmd"># Fetch KPI metrics summary:</span>
+        <span class="t-cmd">curl http://localhost:5000/api/analytics/summary</span>
+        <span class="t-out">{"success":true,"data":{"totalOrders":41,"totalRevenue":1222150,"delayedOrders":9}}</span>
+      </div>
+    </section>
+
+    <!-- SECTION 2: HOW TO PROCESS YOUR EXACT DATA -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>⚙️</span> 2. How to Process Your Data (Step-by-Step)
+      </div>
+      <p class="section-desc">
+        Let’s take the exact sample data you provided: <strong>Products.csv</strong> (P101 to P105) and <strong>Orders.json</strong> (1001 to 1005). Here is how you can process it right now:
+      </p>
+
+      <div class="workflow-timeline">
+        <!-- Step 1 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">1</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Method A: Through the Web Pipeline UI</h3>
+              <span class="step-tag tag-blue">No Code Needed</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
+              Open <a href="http://localhost:5173" target="_blank" class="status-url">http://localhost:5173</a> and click on the <strong>Pipeline</strong> tab in the sidebar:
+            </p>
+            <ol style="padding-left: 20px; font-size: 0.88rem; color: var(--text-muted); line-height: 1.8;">
+              <li>Under <strong>CSV Products</strong>: Click "Upload Products.csv" and select your CSV file (or leave empty to trigger baseline).</li>
+              <li>Under <strong>JSON Orders</strong>: Click "Upload Orders.json" and select your JSON orders file.</li>
+              <li>Under <strong>XML Shipments</strong>: Click "Upload Shipment.xml" for shipment records.</li>
+              <li>Click the respective <strong>Ingest</strong> button. The live activity log will confirm row count and update the database counters immediately!</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">2</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Method B: Via REST API / cURL / Postman</h3>
+              <span class="step-tag tag-emerald">Developer Method</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+              You can send the payload directly via HTTP POST in the request body or as a file upload:
+            </p>
+            <pre># Ingest Products CSV:
+curl -X POST http://localhost:5000/api/ingest/csv \
+  -H "Content-Type: text/csv" \
+  -d "ProductID,ProductName,Category
+P101,Laptop,Electronics
+P102,Smartphone,Electronics
+P103,Office Chair,Furniture
+P104,Monitor,Electronics
+P105,Backpack,Accessories"
+
+# Ingest Orders JSON:
+curl -X POST http://localhost:5000/api/ingest/json \
+  -H "Content-Type: application/json" \
+  -d '[{"order_id":"1001","customer":{"id":"C001","name":"Rahul Sharma"},"items":[{"product_id":"P101","qty":2,"price":500},{"product_id":"P102","qty":1,"price":1200}],"order_date":"2024-01-05"}]'</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: UNDERSTANDING THE COMPLETE WORKFLOW -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>🔄</span> 3. The Complete Data Processing Workflow (Behind the Scenes)
+      </div>
+      <p class="section-desc">
+        What happens under the hood when data is submitted? The backend executes a 5-stage transformation pipeline:
+      </p>
+
+      <div class="workflow-timeline">
+        <!-- Stage 1 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">A</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Stage 1: Multi-Format Parsing & Sanitization</h3>
+              <span class="step-tag tag-purple">json.service.js / csv.service.js / xml.service.js</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">
+              Raw client inputs frequently contain quirks from CSV exports, spreadsheet quotes, or XML hierarchy differences:
+            </p>
+            <ul style="padding-left: 20px; font-size: 0.86rem; color: var(--text-muted); line-height: 1.7;">
+              <li><strong>JSON Sanitizer:</strong> Automatically detects and cleans double quotation escapes (e.g., <code class="inline-code">""orders""</code> → <code class="inline-code">"orders"</code>) and strips UTF-8 BOM byte marks (<code class="inline-code">\uFEFF</code>).</li>
+              <li><strong>CSV Parser:</strong> Strips outer boundary quotes from every record and normalizes varied column keys (<code class="inline-code">ProductID</code> / <code class="inline-code">product_id</code>).</li>
+              <li><strong>XML Parser:</strong> Parses <code class="inline-code">&lt;shipments&gt;</code> and normalizes both single-item objects and arrays into uniform lists.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">B</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Stage 2: Live Currency Conversion & Rate Caching</h3>
+              <span class="step-tag tag-amber">currency.service.js</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 10px;">
+              The engine calls the public <strong>Frankfurter Currency API</strong> to calculate real-time exchange rates (e.g., INR to EUR / USD):
+            </p>
+            <div style="background: #090e1a; padding: 12px 16px; border-radius: 8px; border: 1px solid #1e293b; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: #38bdf8;">
+              Rate: 1 INR ≈ €0.0092 EUR (TTL: 1 hour cache with offline fallback)
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">
+              Every line item and order is stored with both original currency (<code class="inline-code">total_order_value</code>) and converted currency (<code class="inline-code">total_order_value_converted</code>).
+            </p>
+          </div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">C</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Stage 3: Relational Multi-Way Join & Delay Derivation</h3>
+              <span class="step-tag tag-emerald">transformation.service.js</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">
+              The core transformation engine indexes Products and Shipments into in-memory hash maps for <strong>O(1) lookups</strong> and performs a 3-way join:
+            </p>
+
+            <table class="flow-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product & Category</th>
+                  <th>Calculation (Qty × Price)</th>
+                  <th>Shipment & Delay Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong style="color: #38bdf8;">1001</strong></td>
+                  <td>Rahul Sharma (C001)</td>
+                  <td>Laptop (P101) [Electronics]<br>Smartphone (P102) [Electronics]</td>
+                  <td>2 × ₹500 = ₹1,000<br>1 × ₹1,200 = ₹1,200<br><strong style="color: #a3e635;">Total: ₹2,200</strong></td>
+                  <td>3 Days — <span style="color: #10b981; font-weight: 600;">Delivered</span> (Delay: false)</td>
+                </tr>
+                <tr>
+                  <td><strong style="color: #38bdf8;">1002</strong></td>
+                  <td>Priya Verma (C002)</td>
+                  <td>Office Chair (P103) [Furniture]</td>
+                  <td>3 × ₹800 = ₹2,400<br><strong style="color: #a3e635;">Total: ₹2,400</strong></td>
+                  <td>7 Days — <span style="color: #f59e0b; font-weight: 600;">Delayed</span> (Delay: true)</td>
+                </tr>
+                <tr>
+                  <td><strong style="color: #38bdf8;">1003</strong></td>
+                  <td>Amit Kumar (C003)</td>
+                  <td>Laptop (P101) + Monitor (P104)</td>
+                  <td>1 × ₹500 + 2 × ₹1,500<br><strong style="color: #a3e635;">Total: ₹3,500</strong></td>
+                  <td>2 Days — <span style="color: #10b981; font-weight: 600;">Delivered</span> (Delay: false)</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p style="color: var(--text-sub); font-size: 0.82rem;">
+              * <strong>Delay Rule:</strong> An order is flagged as <code class="inline-code">delivery_delay = 1</code> if shipment status is explicitly "Delayed" OR delivery days exceed 5 days.
+            </p>
+          </div>
+        </div>
+
+        <!-- Stage 4 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">D</div>
+            <div class="step-line"></div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Stage 4: Atomic Relational Storage in SQLite</h3>
+              <span class="step-tag tag-blue">storage.service.js / database.js</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">
+              Data is written into normalized relational tables inside an <strong>atomic SQLite transaction</strong>. If any row fails, the database automatically rolls back cleanly without partial corruption:
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 0.82rem;">
+              <div style="background: #090e1a; padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                <strong style="color: #38bdf8;">customers</strong><br>
+                id, name
+              </div>
+              <div style="background: #090e1a; padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                <strong style="color: #38bdf8;">products</strong><br>
+                product_id, name, category, price, stock
+              </div>
+              <div style="background: #090e1a; padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                <strong style="color: #38bdf8;">orders</strong><br>
+                order_id, customer_id, order_date, total_order_value, total_order_value_converted
+              </div>
+              <div style="background: #090e1a; padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                <strong style="color: #38bdf8;">shipments</strong><br>
+                shipment_id, order_id, delivery_days, status, delivery_delay
+              </div>
+              <div style="background: #090e1a; padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                <strong style="color: #38bdf8;">order_items</strong><br>
+                id, order_id, product_id, qty, price, item_value
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage 5 -->
+        <div class="timeline-step">
+          <div class="step-number-col">
+            <div class="step-circle">E</div>
+          </div>
+          <div class="step-content">
+            <div class="step-header">
+              <h3>Stage 5: Live Aggregation & Dashboard Presentation</h3>
+              <span class="step-tag tag-emerald">React 19 / Recharts / Tailwind</span>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">
+              The React frontend triggers parallel API requests (<code class="inline-code">Promise.all</code>) for instant rendering:
+            </p>
+            <ul style="padding-left: 20px; font-size: 0.86rem; color: var(--text-muted); line-height: 1.8;">
+              <li><strong>KPI Summary:</strong> Queries <code class="inline-code">/api/analytics/summary</code> for Total Orders, Revenue, Delayed Count, and Avg Order Value.</li>
+              <li><strong>Revenue Trends:</strong> Queries <code class="inline-code">/api/analytics/revenue</code> and renders an interactive SVG Area chart.</li>
+              <li><strong>Category Breakdown:</strong> Queries <code class="inline-code">/api/analytics/categories</code> and draws a vertical/horizontal Bar chart.</li>
+              <li><strong>Delivery Logistics:</strong> Queries <code class="inline-code">/api/analytics/delivery</code> and renders the Donut distribution chart.</li>
+              <li><strong>Recent Orders:</strong> Queries <code class="inline-code">/api/analytics/orders</code> to populate searchable, sortable tables with drawer slide-outs.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: DEMO DATASET ONE-CLICK SEED -->
+    <section class="section-card" style="border-color: rgba(56, 189, 248, 0.3);">
+      <div class="section-title">
+        <span>✨</span> 4. Instant Demo Dataset Seeder
+      </div>
+      <p class="section-desc">
+        Need to test all charts, date ranges, and categories without preparing multiple files? The platform comes with a built-in one-click seed feature that populates <strong>41+ realistic orders across 14 dates and 5 product categories</strong>:
+      </p>
+
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <button onclick="triggerSeed()" class="btn" id="seed-btn">
+          <span>🚀 Seed 41+ Orders via API</span>
+        </button>
+        <a href="http://localhost:5173" target="_blank" class="btn btn-outline">
+          Open Live Dashboard
+        </a>
+      </div>
+      <div id="seed-feedback" style="margin-top: 14px; font-size: 0.88rem; color: #a3e635; display: none;"></div>
+    </section>
+
+    <footer style="text-align: center; color: var(--text-sub); font-size: 0.85rem; margin-top: 40px;">
+      Order Analytics Dashboard & Ingestion Engine — Built by Anuj Shahdeo
+    </footer>
+  </div>
+
+  <script>
+    async function triggerSeed() {
+      const btn = document.getElementById('seed-btn');
+      const feedback = document.getElementById('seed-feedback');
+      btn.innerText = 'Seeding database...';
+      btn.style.opacity = '0.6';
+      
+      try {
+        const res = await fetch('http://localhost:5000/api/ingest/seed', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          feedback.style.display = 'block';
+          feedback.innerText = '✓ Success: 41 Orders and 82 Items inserted into analytics.db! Refresh your dashboard at http://localhost:5173 to view.';
+        } else {
+          feedback.style.display = 'block';
+          feedback.style.color = '#ef4444';
+          feedback.innerText = 'Error: ' + data.error;
+        }
+      } catch (e) {
+        feedback.style.display = 'block';
+        feedback.style.color = '#ef4444';
+        feedback.innerText = 'Failed to reach API server: ' + e.message;
+      } finally {
+        btn.innerText = '🚀 Seed 41+ Orders via API';
+        btn.style.opacity = '1';
+      }
+    }
+  </script>
+</body>
+</html>
